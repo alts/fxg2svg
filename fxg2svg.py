@@ -1,15 +1,44 @@
+'''
+	This utility can convert Adobe Flash generated FXG files into SVG files
+	To ensure proper conversion of files with this script ensure the following:
+	1. Your FXG file source contain only fill types and no lines (can be achieved using convert lines to fill command in flash)
+	2. Your top-most flash element is a Graphic type and not a raw drawing (or other element)
+	3. You are using python 3.6+
+	4. You have installed lxml library using pip
+'''
+
+import sys
+
+print('\nTo ensure proper conversion of files with this script ensure the following:');
+print('1. Your FXG file source contain only fill types and no lines (can be achieved using convert lines to fill command in flash)');
+print('2. Your top-most flash element is a Graphic type and not a raw drawing (or other element)');
+print('3. You are using python 3.6+')
+print('4. You have installed lxml library using pip\n')
+
 from lxml import etree
 
-with open('example.fxg', 'rb') as f:
+input_file = sys.argv[1]
+
+if not input_file:
+    # user did not provide a file from terminal command, prompt him to enter now
+    input_file = input('Enter file path: ')
+
+if not input_file:
+    print('No file provided, Cancelling conversion')
+    sys.exit(0)
+
+if not input_file.endswith('.fxg'):
+    input_file = input_file + '.fxg'
+
+with open(input_file, 'rb') as f:
     x = etree.parse(f)
 
-root_ns = x.getroot().nsmap[None]
+root_element = x.getroot()
+root_ns = root_element.nsmap[None]
 
 svg = etree.Element(
     'svg',
-    width="8cm",
-    height="8cm",
-    viewBox="0 0 800 800",
+    viewBox="0 0 "+root_element.attrib['viewWidth']+" "+root_element.attrib['viewHeight'],
     xmlns="http://www.w3.org/2000/svg",
     version="1.1"
 )
@@ -24,13 +53,20 @@ def get_paths_in_element(el):
             attrs = {'d': element.attrib['data']}
             for child in element.getchildren():
                 if 'fill' in child.tag:
-                    attrs['fill'] = child.getchildren()[0].attrib['color']
+                    color_data = child.getchildren()[0]
+                    try:
+                        attrs['fill'] = color_data.attrib['color']
+                    except:
+                        attrs['fill'] = '#000000'
                 else:
                     attrs['fill'] = 'none'
 
                 if 'stroke' in child.tag:
                     stroke = child.getchildren()[0]
-                    attrs['stroke'] = stroke.attrib['color']
+                    try:
+                        attrs['stroke'] = stroke.attrib['color']
+                    except:
+                        attrs['stroke'] = '#000000'
                     if stroke.attrib.get('weight'):
                         attrs['stroke-weight'] = stroke.attrib['weight']
             root.append(etree.Element('path', **attrs))
@@ -42,6 +78,10 @@ for element in x.iter():
         key_order.append(element.attrib['name'])
 
 definition_names = named_groups.keys()
+
+if len(definition_names) is 0:
+    raise "fxg does not contain any definition tags, please ensure your top level element is a Graphic symbol"
+
 for element in x.iter():
     tag = element.tag.split('}')[-1]
     if tag in definition_names:
@@ -96,4 +136,8 @@ for element in x.iter():
         parent.append(named_groups[tag])
         svg.append(root)
 
-print etree.tostring(svg)
+output_file = input_file[:-3] + 'svg'
+with open(output_file, 'wb') as f:
+    f.write(etree.tostring(svg))
+
+print(input_file,'converted to',output_file)
