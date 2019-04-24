@@ -56,6 +56,7 @@ def get_paths_in_element(el):
                     color_data = child.getchildren()[0]
                     try:
                         attrs['fill'] = color_data.attrib['color']
+                        attrs['fill-opacity'] = color_data.attrib.get('alpha','1')
                     except:
                         attrs['fill'] = '#000000'
                 else:
@@ -65,6 +66,7 @@ def get_paths_in_element(el):
                     stroke = child.getchildren()[0]
                     try:
                         attrs['stroke'] = stroke.attrib['color']
+                        attrs['stroke-opacity'] = color_data.attrib.get('alpha','1')
                     except:
                         attrs['stroke'] = '#000000'
                     if stroke.attrib.get('weight'):
